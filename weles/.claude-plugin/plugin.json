@@ -17,13 +17,13 @@
     "pg_port": {
       "type": "string",
       "title": "PostgreSQL port",
-      "description": "Port serwera PostgreSQL (np. 16432)",
+      "description": "Port serwera PostgreSQL (np. 5432)",
       "default": "5432"
     },
     "pg_database": {
       "type": "string",
       "title": "Nazwa bazy danych",
-      "description": "Baza danych, w której plugin będzie archiwizować konwersacje (np. home)"
+      "description": "Baza danych, w której plugin będzie archiwizować konwersacje (np. claude_archive)"
     },
     "pg_user": {
       "type": "string",

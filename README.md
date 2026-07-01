@@ -21,7 +21,7 @@ Zamontuj `weles/sql/init-claude-archive.sql` w
 uruchomieniem** wolumenu, albo — jeśli baza już istnieje — uruchom ręcznie:
 
 ```bash
-PGHOST=127.0.0.1 PGPORT=16432 PGDATABASE=home \
+PGHOST=127.0.0.1 PGPORT=5432 PGDATABASE=claude_archive \
 PGUSER=twoj_user PGPASSWORD=twoje_haslo \
   ./weles/scripts/setup-db.sh
 ```
@@ -61,7 +61,7 @@ Jeśli używasz hooka bez pluginu, skrypt szuka konfiguracji w kolejności:
 
 1. `CLAUDE_PLUGIN_OPTION_PG_*` — ustawiane automatycznie przez plugin
 2. `PGHOST` / `PGPORT` / `PGDATABASE` / `PGUSER` / `PGPASSWORD` — klasyczne zmienne środowiskowe
-3. `~/.senv` — fallback (ten sam plik co dla kontenera `home-db`)
+3. `~/.env` — fallback (dowolny plik z parami KLUCZ=WARTOŚĆ)
 
 ### 4. Zweryfikuj
 
@@ -74,7 +74,7 @@ powinno pokazać zarejestrowane hooki `Stop` i `SessionEnd` z pluginu
 
 ```bash
 ls ~/.claude/plugins/data/weles/
-psql -h 127.0.0.1 -p 16432 -U $PGUSER -d home -c \
+psql -h 127.0.0.1 -p 5432 -U $PGUSER -d claude_archive -c \
   "SELECT session_id, left(user_message,40), left(assistant_message,40) FROM claude_archive.conversation_turn ORDER BY id DESC LIMIT 5;"
 ```
 
@@ -97,6 +97,6 @@ wygodniejsza, wersjonowana forma dystrybucji tego samego mechanizmu.
 
 1. Wypchnij to repo na firmowy GitHub/GitLab.
 2. Inni dodają je przez `/plugin marketplace add org/weles`.
-3. Każdy ustawia własne `~/.senv` z danymi do swojej bazy (albo wspólnej,
+3. Każdy ustawia własne `~/.env` z danymi do swojej bazy (albo wspólnej,
    jeśli archiwum ma być scentralizowane — wtedy warto dodać kolumnę
    `user_name` i ją wypełniać z `$USER`/`whoami`, żeby rozróżniać autorów).

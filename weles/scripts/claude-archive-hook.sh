@@ -22,11 +22,11 @@
 #
 # Gdy używasz standalone (bez pluginu): ustaw zmienne środowiskowe
 # PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD — np. przez sekcję "env"
-# w ~/.claude/settings.json albo przez plik ~/.senv (fallback).
+# w ~/.claude/settings.json albo przez plik ~/.env (fallback).
 # Skrypt szuka konfiguracji w kolejności priorytetów:
 #   1. CLAUDE_PLUGIN_OPTION_PG_* (plugin userConfig — najwyższy priorytet)
 #   2. PGHOST / PGPORT / PGDATABASE / PGUSER / PGPASSWORD (zmienne systemowe)
-#   3. Plik ~/.senv (opcjonalny fallback — czytany tylko gdy brak obu powyżej)
+#   3. Plik ~/.env (opcjonalny fallback — czytany tylko gdy brak obu powyżej)
 #
 set -uo pipefail
 # UWAGA: celowo BEZ "set -e" — hook nigdy nie może przerwać Claude Code
@@ -70,7 +70,7 @@ require_tools() {
 # Wczytuje konfigurację połączenia wg priorytetów:
 #   1. CLAUDE_PLUGIN_OPTION_PG_* (plugin userConfig)
 #   2. Klasyczne PG* (zmienne środowiskowe)
-#   3. Plik ~/.senv (fallback standalone)
+#   3. Plik ~/.env (fallback standalone)
 # Zwraca 1 jeśli brak wystarczającej konfiguracji (user lub password puste).
 resolve_pg_config() {
     # Priorytet 1: plugin userConfig — eksportowane przez Claude Code jako
@@ -94,8 +94,8 @@ resolve_pg_config() {
         return 0
     fi
 
-    # Priorytet 3: fallback — plik ~/.senv (standalone bez pluginu).
-    local env_file="${CLAUDE_ARCHIVE_ENV_FILE:-$HOME/.senv}"
+    # Priorytet 3: fallback — plik ~/.env (standalone bez pluginu).
+    local env_file="${CLAUDE_ARCHIVE_ENV_FILE:-$HOME/.env}"
     if [[ -f "$env_file" ]]; then
         local key value
         while IFS='=' read -r key value; do

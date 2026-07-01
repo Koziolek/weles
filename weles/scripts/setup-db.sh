@@ -7,16 +7,16 @@
 # bo wolumen bazy był już zainicjalizowany wcześniej).
 #
 # Użycie:
-#   PGHOST=127.0.0.1 PGPORT=16432 PGDATABASE=home PGUSER=... PGPASSWORD=... ./setup-db.sh
+#   PGHOST=127.0.0.1 PGPORT=5432 PGDATABASE=claude_archive PGUSER=... PGPASSWORD=... ./setup-db.sh
 #
-# albo wczyta dane z ~/.senv, jeśli zmienne nie są ustawione w środowisku.
+# albo wczyta dane z ~/.env, jeśli zmienne nie są ustawione w środowisku.
 #
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SQL_FILE="$SCRIPT_DIR/../sql/init-claude-archive.sql"
 
-ENV_FILE="${CLAUDE_ARCHIVE_ENV_FILE:-$HOME/.senv}"
+ENV_FILE="${CLAUDE_ARCHIVE_ENV_FILE:-$HOME/.env}"
 if [[ -f "$ENV_FILE" ]]; then
     while IFS='=' read -r key value; do
         [[ -z "$key" || "$key" == \#* ]] && continue
@@ -27,8 +27,8 @@ if [[ -f "$ENV_FILE" ]]; then
 fi
 
 : "${PGHOST:=127.0.0.1}"
-: "${PGPORT:=16432}"
-: "${PGDATABASE:?Ustaw PGDATABASE (nazwa bazy, np. home)}"
+: "${PGPORT:=5432}"
+: "${PGDATABASE:?Ustaw PGDATABASE (nazwa bazy, np. claude_archive)}"
 : "${PGUSER:?Ustaw PGUSER}"
 : "${PGPASSWORD:?Ustaw PGPASSWORD}"
 
