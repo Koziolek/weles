@@ -11,7 +11,7 @@
       "name": "weles",
       "source": "./weles",
       "description": "Archiwizacja historii konwersacji Claude Code do PostgreSQL z backupem JSONL",
-      "version": "1.0.0"
+      "version": "1.0.1"
     }
   ]
 }
