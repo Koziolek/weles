@@ -1,0 +1,17 @@
+{
+  "name": "weles",
+  "owner": {
+    "name": "Koziołek"
+  },
+  "metadata": {
+    "description": "Marketplace-wrapper dla pojedynczego pluginu weles (wymóg formatu Claude Code)"
+  },
+  "plugins": [
+    {
+      "name": "weles",
+      "source": "./weles",
+      "description": "Archiwizacja historii konwersacji Claude Code do PostgreSQL z backupem JSONL",
+      "version": "1.0.0"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "description": "Archiwizacja konwersacji do PostgreSQL z backupem JSONL",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/claude-archive-hook.sh stop",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/claude-archive-hook.sh session_end",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

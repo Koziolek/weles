@@ -1,0 +1,40 @@
+{
+  "name": "weles",
+  "version": "1.0.0",
+  "description": "Archiwizuje historię konwersacji Claude Code (pytania i odpowiedzi, bez permission promptów i thinking) do PostgreSQL, z lokalnym backupem JSONL na wypadek awarii bazy.",
+  "author": {
+    "name": "Koziołek"
+  },
+  "license": "MIT",
+  "keywords": ["archiwum", "postgresql", "hooks", "historia-konwersacji"],
+  "userConfig": {
+    "pg_host": {
+      "type": "string",
+      "title": "PostgreSQL host",
+      "description": "Adres serwera PostgreSQL (np. 127.0.0.1)",
+      "default": "127.0.0.1"
+    },
+    "pg_port": {
+      "type": "string",
+      "title": "PostgreSQL port",
+      "description": "Port serwera PostgreSQL (np. 16432)",
+      "default": "5432"
+    },
+    "pg_database": {
+      "type": "string",
+      "title": "Nazwa bazy danych",
+      "description": "Baza danych, w której plugin będzie archiwizować konwersacje (np. home)"
+    },
+    "pg_user": {
+      "type": "string",
+      "title": "Użytkownik PostgreSQL",
+      "description": "Nazwa użytkownika do połączenia z bazą"
+    },
+    "pg_password": {
+      "type": "string",
+      "title": "Hasło PostgreSQL",
+      "description": "Hasło do połączenia z bazą — przechowywane bezpiecznie w keychain systemu",
+      "sensitive": true
+    }
+  }
+}
