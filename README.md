@@ -1,76 +1,78 @@
 # weles
 
-Plugin Claude Code archiwizujący historię konwersacji (pytania użytkownika i
-odpowiedzi asystenta — bez permission promptów i bez bloków `thinking`) do
-PostgreSQL, z lokalnym backupem JSONL na wypadek awarii bazy.
+Claude Code plugin that archives conversation history (user questions and
+assistant answers — no permission prompts, no `thinking` blocks) to
+PostgreSQL, with a local JSONL backup in case the database is unavailable.
 
-Repo zawiera jeden plugin. `.claude-plugin/marketplace.json` w korzeniu to
-tylko wrapper wymagany przez format instalacji Claude Code — sam kod pluginu
-leży w podkatalogu `weles/`.
+This repo holds a single plugin. `.claude-plugin/marketplace.json` at the
+root is just a wrapper required by the Claude Code install format — the
+actual plugin code lives in the `weles/` subdirectory.
 
-Mechanizm: hooki `Stop` (po każdej turze) i `SessionEnd` (zamknięcie sesji).
-Kolejność zapisu: najpierw plik JSONL (zawsze się udaje), potem próba zapisu
-do Postgresa (best-effort, błędy lądują w logu, nigdy nie blokują sesji).
+Mechanism: `Stop` (after every turn) and `SessionEnd` (session close) hooks.
+Write order: JSONL file first (always succeeds), then a best-effort write to
+Postgres (errors go to a log, never block the session).
 
-## Instalacja jako plugin (zalecane)
+## Install as a plugin (recommended)
 
-### 1. Załóż bazę danych
+### 1. Set up the database
 
-Zamontuj `weles/sql/init-claude-archive.sql` w
-`docker-entrypoint-initdb.d/` swojego kontenera Postgres **przed pierwszym
-uruchomieniem** wolumenu, albo — jeśli baza już istnieje — uruchom ręcznie:
+Mount `weles/sql/init-claude-archive.sql` into
+`docker-entrypoint-initdb.d/` of your Postgres container **before the first
+run** of the volume, or — if the database already exists — run manually:
 
 ```bash
 PGHOST=127.0.0.1 PGPORT=5432 PGDATABASE=claude_archive \
-PGUSER=twoj_user PGPASSWORD=twoje_haslo \
+PGUSER=your_user PGPASSWORD=your_password \
   ./weles/scripts/setup-db.sh
 ```
 
-### 2. Dodaj marketplace i zainstaluj plugin
+### 2. Add the marketplace and install the plugin
 
-Z poziomu Claude Code (CLI):
+From Claude Code (CLI):
 
 ```
-/plugin marketplace add <ścieżka-lub-url-do-tego-repo>
+/plugin marketplace add <path-or-url-to-this-repo>
 /plugin install weles@weles
 ```
 
-Przykłady źródła dla `marketplace add`:
-- lokalnie sklonowane repo: `/plugin marketplace add ~/repos/weles`
-- GitHub: `/plugin marketplace add twoj-user/weles`
+Examples of source for `marketplace add`:
+- locally cloned repo: `/plugin marketplace add ~/repos/weles`
+- GitHub: `/plugin marketplace add your-user/weles`
 
-### 3. Skonfiguruj dane dostępowe do bazy
+### 3. Configure database credentials
 
-Po instalacji pluginu uruchom:
+After installing the plugin, run:
 
 ```
 /plugin configure weles
 ```
 
-Claude Code zapyta o host, port, nazwę bazy i użytkownika (przechowywane
-w `settings.json`), a hasło zapisze bezpiecznie w **keychain systemu**
-(`sensitive: true`). To jedyny wymagany krok konfiguracyjny.
+Claude Code will ask for host, port, database name, and user (stored in
+`settings.json`), and will store the password securely in the **system
+keychain** (`sensitive: true`). This is the only required configuration
+step.
 
-Backup plikowy domyślnie ląduje w `${CLAUDE_PLUGIN_DATA}` (czyli
-`~/.claude/plugins/data/weles/`) — katalog ten przeżywa
-aktualizacje i reinstalacje pluginu.
+The file backup lands by default in `${CLAUDE_PLUGIN_DATA}` (i.e.
+`~/.claude/plugins/data/weles/`) — this directory survives plugin
+updates and reinstalls.
 
-#### Alternatywa: zmienne środowiskowe (standalone / CI)
+#### Alternative: environment variables (standalone / CI)
 
-Jeśli używasz hooka bez pluginu, skrypt szuka konfiguracji w kolejności:
+If you use the hook without the plugin, the script looks for configuration
+in this order:
 
-1. `CLAUDE_PLUGIN_OPTION_PG_*` — ustawiane automatycznie przez plugin
-2. `PGHOST` / `PGPORT` / `PGDATABASE` / `PGUSER` / `PGPASSWORD` — klasyczne zmienne środowiskowe
-3. `~/.env` — fallback (dowolny plik z parami KLUCZ=WARTOŚĆ)
+1. `CLAUDE_PLUGIN_OPTION_PG_*` — set automatically by the plugin
+2. `PGHOST` / `PGPORT` / `PGDATABASE` / `PGUSER` / `PGPASSWORD` — classic environment variables
+3. `~/.env` — fallback (any file with KEY=VALUE pairs)
 
-### 4. Zweryfikuj
+### 4. Verify
 
 ```
 /hooks
 ```
 
-powinno pokazać zarejestrowane hooki `Stop` i `SessionEnd` z pluginu
-`weles`. Po jednej turze rozmowy sprawdź:
+should show the `Stop` and `SessionEnd` hooks registered from the `weles`
+plugin. After one conversation turn, check:
 
 ```bash
 ls ~/.claude/plugins/data/weles/
@@ -78,25 +80,30 @@ psql -h 127.0.0.1 -p 5432 -U $PGUSER -d claude_archive -c \
   "SELECT session_id, left(user_message,40), left(assistant_message,40) FROM claude_archive.conversation_turn ORDER BY id DESC LIMIT 5;"
 ```
 
-## Aktualizacja pluginu
+## Updating the plugin
 
 ```
 /plugin marketplace update
 /plugin update weles
 ```
 
-## Instalacja bez pluginu (standalone, szybki test)
+## Install without the plugin (standalone, quick test)
 
-Jeśli nie chcesz na razie pakować tego jako plugin, możesz po prostu podpiąć
-hooki bezpośrednio w `~/.claude/settings.json`, kopiując
-`weles/scripts/claude-archive-hook.sh` do
-`~/.claude/hooks/` i wskazując na niego w sekcji `hooks`. Plugin to po prostu
-wygodniejsza, wersjonowana forma dystrybucji tego samego mechanizmu.
+If you don't want to package this as a plugin yet, you can just wire the
+hooks directly in `~/.claude/settings.json`, copying
+`weles/scripts/claude-archive-hook.sh` to `~/.claude/hooks/` and pointing to
+it in the `hooks` section. The plugin is just a more convenient, versioned
+form of distributing the same mechanism.
 
-## Dystrybucja dalej (np. dla reszty zespołu)
+## Distributing further (e.g. to a team)
 
-1. Wypchnij to repo na firmowy GitHub/GitLab.
-2. Inni dodają je przez `/plugin marketplace add org/weles`.
-3. Każdy ustawia własne `~/.env` z danymi do swojej bazy (albo wspólnej,
-   jeśli archiwum ma być scentralizowane — wtedy warto dodać kolumnę
-   `user_name` i ją wypełniać z `$USER`/`whoami`, żeby rozróżniać autorów).
+1. Push this repo to your company's GitHub/GitLab.
+2. Others add it via `/plugin marketplace add org/weles`.
+3. Each person sets up their own `~/.env` with their database credentials
+   (or a shared one, if the archive should be centralized — in that case
+   it's worth adding a `user_name` column and populating it from
+   `$USER`/`whoami` to distinguish authors).
+
+---
+
+Polish version: [README.pl.md](README.pl.md)
