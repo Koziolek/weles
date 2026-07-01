@@ -46,6 +46,9 @@ _PG_DATABASE=""
 _PG_USER=""
 _PG_PASSWORD=""
 
+# Ścieżka do działającej binarki psql — wypełniana przez find_psql_bin().
+_PSQL_BIN=""
+
 # -----------------------------------------------------------------------------
 # Funkcje pomocnicze
 # -----------------------------------------------------------------------------
@@ -55,11 +58,39 @@ log_error() {
     printf '%s | %s\n' "$(date -Iseconds)" "$1" >> "$ERROR_LOG"
 }
 
+# `command -v psql` sprawdza tylko, czy plik istnieje w PATH — na Debianie/Ubuntu
+# to zwykle wrapper (pg_wrapperv), który w niektórych środowiskach hooków (sandbox
+# Claude Code, ograniczony PATH/mount) nie potrafi znaleźć realnej wersji klienta
+# i pada z "You must install at least one postgresql-client-<version> package",
+# mimo że sam plik psql istnieje. Dlatego testujemy realne wywołanie, a przy
+# porażce szukamy binarki bezpośrednio w /usr/lib/postgresql/*/bin/psql.
+find_psql_bin() {
+    [[ -n "$_PSQL_BIN" ]] && return 0
+
+    if [[ -n "${CLAUDE_ARCHIVE_PSQL_BIN:-}" && -x "${CLAUDE_ARCHIVE_PSQL_BIN}" ]]; then
+        _PSQL_BIN="$CLAUDE_ARCHIVE_PSQL_BIN"
+        return 0
+    fi
+
+    if psql --version >/dev/null 2>&1; then
+        _PSQL_BIN="psql"
+        return 0
+    fi
+
+    local candidate
+    candidate=$(ls -1 /usr/lib/postgresql/*/bin/psql 2>/dev/null | sort -V | tail -n1)
+    if [[ -n "$candidate" && -x "$candidate" ]]; then
+        _PSQL_BIN="$candidate"
+        return 0
+    fi
+
+    return 1
+}
+
 require_tools() {
     local missing=()
-    for tool in jq psql; do
-        command -v "$tool" >/dev/null 2>&1 || missing+=("$tool")
-    done
+    command -v jq >/dev/null 2>&1 || missing+=("jq")
+    find_psql_bin || missing+=("psql (znaleziono plik, ale nie działa i brak binarki w /usr/lib/postgresql/*/bin)")
     if (( ${#missing[@]} > 0 )); then
         log_error "Brak wymaganych narzędzi: ${missing[*]}. Pomijam archiwizację tej tury."
         return 1
@@ -135,12 +166,13 @@ sql_literal() {
 
 run_psql() {
     local sql="$1"
+    find_psql_bin || { echo "psql niedostępny"; return 1; }
     PGHOST="$_PG_HOST" \
     PGPORT="$_PG_PORT" \
     PGDATABASE="$_PG_DATABASE" \
     PGUSER="$_PG_USER" \
     PGPASSWORD="$_PG_PASSWORD" \
-    psql -v ON_ERROR_STOP=1 -X -q -t -c "$sql" 2>&1
+    "$_PSQL_BIN" -v ON_ERROR_STOP=1 -X -q -t -c "$sql" 2>&1
 }
 
 # Nakłada schemat claude_archive (schema/tabele/indeksy) z bundlowanego pliku
@@ -154,12 +186,13 @@ ensure_schema() {
         log_error "Nie znaleziono pliku schematu: $SCHEMA_SQL_FILE"
         return 1
     fi
+    find_psql_bin || { echo "psql niedostępny"; return 1; }
     PGHOST="$_PG_HOST" \
     PGPORT="$_PG_PORT" \
     PGDATABASE="$_PG_DATABASE" \
     PGUSER="$_PG_USER" \
     PGPASSWORD="$_PG_PASSWORD" \
-    psql -v ON_ERROR_STOP=1 -X -q -f "$SCHEMA_SQL_FILE" 2>&1
+    "$_PSQL_BIN" -v ON_ERROR_STOP=1 -X -q -f "$SCHEMA_SQL_FILE" 2>&1
 }
 
 # Uruchamia INSERT/UPDATE; jeśli baza zgłosi brak tabeli/schematu (świeża baza,
