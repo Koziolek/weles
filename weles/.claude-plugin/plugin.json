@@ -1,6 +1,6 @@
 {
   "name": "weles",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Archiwizuje historię konwersacji Claude Code (pytania i odpowiedzi, bez permission promptów i thinking) do PostgreSQL, z lokalnym backupem JSONL na wypadek awarii bazy.",
   "author": {
     "name": "Koziołek"
