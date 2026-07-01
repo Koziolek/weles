@@ -143,6 +143,51 @@ run_psql() {
     psql -v ON_ERROR_STOP=1 -X -q -t -c "$sql" 2>&1
 }
 
+# Nakłada schemat claude_archive (schema/tabele/indeksy) z bundlowanego pliku
+# SQL. Całość jest idempotentna (CREATE ... IF NOT EXISTS), więc bezpieczna
+# do wielokrotnego uruchomienia.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCHEMA_SQL_FILE="$SCRIPT_DIR/../sql/init-claude-archive.sql"
+
+ensure_schema() {
+    if [[ ! -f "$SCHEMA_SQL_FILE" ]]; then
+        log_error "Nie znaleziono pliku schematu: $SCHEMA_SQL_FILE"
+        return 1
+    fi
+    PGHOST="$_PG_HOST" \
+    PGPORT="$_PG_PORT" \
+    PGDATABASE="$_PG_DATABASE" \
+    PGUSER="$_PG_USER" \
+    PGPASSWORD="$_PG_PASSWORD" \
+    psql -v ON_ERROR_STOP=1 -X -q -f "$SCHEMA_SQL_FILE" 2>&1
+}
+
+# Uruchamia INSERT/UPDATE; jeśli baza zgłosi brak tabeli/schematu (świeża baza,
+# nikt jeszcze nie odpalił setup-db.sh), sama nakłada schemat i ponawia raz.
+run_psql_with_schema_fallback() {
+    local sql="$1"
+    local output
+    if output=$(run_psql "$sql"); then
+        printf '%s' "$output"
+        return 0
+    fi
+
+    if grep -qi 'does not exist' <<<"$output"; then
+        local schema_output
+        if ! schema_output=$(ensure_schema); then
+            printf '%s\n---\n%s' "$output" "$schema_output"
+            return 1
+        fi
+        if output=$(run_psql "$sql"); then
+            printf '%s' "$output"
+            return 0
+        fi
+    fi
+
+    printf '%s' "$output"
+    return 1
+}
+
 # Wyciąga z transkryptu JSONL ostatni tekst dla danego typu rekordu ("user"
 # albo "assistant"), biorąc pod uwagę tylko bloki content o type=="text"
 # (pomija "thinking", "tool_use", "tool_result").
@@ -241,7 +286,7 @@ SQL
 )
 
     local psql_output
-    if ! psql_output=$(run_psql "$sql"); then
+    if ! psql_output=$(run_psql_with_schema_fallback "$sql"); then
         log_error "Zapis do bazy nieudany dla session_id=$session_id: $psql_output"
     fi
 
@@ -285,7 +330,7 @@ SQL
 )
 
     local psql_output
-    if ! psql_output=$(run_psql "$sql"); then
+    if ! psql_output=$(run_psql_with_schema_fallback "$sql"); then
         log_error "SessionEnd: zapis do bazy nieudany dla session_id=$session_id: $psql_output"
     fi
 
